@@ -1,0 +1,44 @@
+{
+  "name": "sapia-public-scripts",
+  "version": "1.0.0",
+  "description": "Public Scripts registry for Sapia",
+  "main": "index.js",
+  "scripts": {
+    "fmt": "npm run lint:fix \"./**/*.{ts,js}\" && npm run prettier:fix \"./**/*.{ts,js}\"",
+    "lint:fix": "eslint --fix",
+    "prettier:fix": "prettier --write --config .prettierrc.js",
+    "prepare": "husky install"
+  },
+  "author": "james@sapia.ai",
+  "license": "MIT",
+  "devDependencies": {
+    "@commitlint/cli": "17.6.5",
+    "@commitlint/config-conventional": "17.6.5",
+    "@typescript-eslint/eslint-plugin": "^5.60.0",
+    "@typescript-eslint/parser": "^5.60.0",
+    "@types/node": "18.16.1",
+    "env-cmd": "^10.1.0",
+    "eslint": "^8.43.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-simple-import-sort": "^10.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "13.2.2",
+    "prettier": "^2.8.8",
+    "ts-node": "^10.9.1",
+    "tsc-watch": "^6.0.4",
+    "typescript": "^5.1.3",
+    "zx": "^7.2.2"
+  },
+  "lint-staged": {
+    "./**/*.mjs": [
+      "npm run lint:fix",
+      "npm run prettier:fix"
+    ]
+  },
+  "volta": {
+    "node": "18.16.1",
+    "npm": "9.5.1"
+  }
+}
