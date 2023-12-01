@@ -62,6 +62,34 @@ const compileWithNpm = async (compiler) => {
   useTSC && (await $`zip -q -r deployment_package.zip node_modules dist -x 'dist/*.map'`)
 }
 
+const compileWithPnpm = async (compiler) => {
+  const useTSC = compiler === "tsc"
+  const useNCC = compiler === "ncc"
+  // clean deps
+  await $`rm -rf node_modules || :`
+
+  // need to compile ts
+  await $`pnpm install --frozen-lockfile`
+
+  // need to exclude node_modules in tsconfig.json
+  useTSC && (await $`npm run build`)
+  useNCC && (await $`npm run build-ncc`)
+
+  // clean deps
+  useTSC && (await $`rm -rf node_modules || :`)
+
+  // only install package in deps
+  useTSC && (await $`pnpm install --frozen-lockfile --prod`)
+
+  // clean package
+  await $`rm deployment_package.zip || :`
+
+  // zip package
+  // zip -q -r deployment_package.zip dist -x 'dist/*.mem'
+  useNCC && (await $`zip -q -r deployment_package.zip dist -x 'dist/*.mem'`)
+  useTSC && (await $`zip -q -r deployment_package.zip node_modules dist -x 'dist/*.map'`)
+}
+
 /**
  *
  * @param s3BucketName the s3 bucket name
@@ -79,6 +107,10 @@ const publish = async (s3BucketName, s3BucketKey, packageTag, compiler, pm) => {
 
   if (pm === "npm") {
     await compileWithNpm(compiler)
+  }
+
+  if (pm === "pnpm") {
+    await compileWithPnpm(compiler)
   }
 
   // upload to lambda registry s3 at qa sydney region(fixed)
@@ -99,6 +131,20 @@ try {
 } catch (error) {
   console.error(error)
 }
-const pm = existsSync("yarn.lock") ? "yarn" : "npm"
+
+let pm = ""
+if (existsSync("yarn.lock")) {
+  pm = "yarn"
+}
+if (existsSync("package-lock.json")) {
+  pm = "npm"
+}
+if (existsSync("pnpm-lock.yaml")) {
+  pm = "pnpm"
+}
+
+if (pm === "") {
+  throw new Error("no package manager found")
+}
 
 await publish(s3BucketName, s3BucketKey, packageTag, compiler, pm)
