@@ -2,7 +2,7 @@
 
 # fetch and source remote scripts
 # TODO: update url
-source <(curl https://gist.githubusercontent.com/predictivehirebuild/90a38d7751f1cbd2d884c452b4943b2b/raw/f491b154f7168149768ecf6755d2d54723499c44/zones.sh -s)
+source <(curl https://raw.githubusercontent.com/PredictiveHire/sapia-public-scripts/main/scripts/cicd/aws/region.mappings.sh -s)
 
 SERVICE_SHORT=false
 STAGE=false
