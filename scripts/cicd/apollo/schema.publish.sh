@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# ! Deprecated and migrated to sapia-public-scripts repo
 # you must have schema:emit in package.json
 
 STAGE=false
@@ -13,9 +12,9 @@ function usage() {
 ##### Publish graphql schema to apollo schema registry #####
 Required arguments:
     -t | --stage                    Stage: qa, sandbox, product
-    -s | --service                  Name of service. e.g. phapi-core-org
+    -s | --service                  Name of service. e.g., phapi-core-org
     -p | --service-url-prefix       The prefix of service url. e.g., phapi-core-org, default: --service
-Requirements: pnpm, buildkite-agent
+Requirements: npm or pnpm, buildkite-agent
 Example: sh ./.buildkite/schema.publish -t qa -s phapi-core-org -p phapi-core-org-internal
 EOM
 
@@ -31,26 +30,83 @@ function require() {
     }
 }
 
+function packageManager() {
+    if [ -f pnpm-lock.yaml ]; then
+        echo "pnpm"
+    elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+        echo "npm"
+    else
+        echo "npm"
+    fi
+}
+
+function activatePnpm() {
+    if command -v pnpm >/dev/null 2>&1; then
+        return
+    fi
+
+    if command -v corepack >/dev/null 2>&1; then
+        corepack enable
+        corepack prepare pnpm@11.3.0 --activate
+    fi
+
+    require pnpm
+}
+
+function installDependencies() {
+    PM="$(packageManager)"
+
+    if [ "$PM" == "pnpm" ]; then
+        activatePnpm
+        pnpm install --frozen-lockfile
+    else
+        require npm
+        npm ci --legacy-peer-deps
+    fi
+}
+
+function runPackageScript() {
+    PM="$(packageManager)"
+
+    if [ "$PM" == "pnpm" ]; then
+        activatePnpm
+        pnpm "$@"
+    else
+        require npm
+        npm run "$@"
+    fi
+}
+
+function execPackageBin() {
+    PM="$(packageManager)"
+
+    if [ "$PM" == "pnpm" ]; then
+        activatePnpm
+        pnpm exec "$@"
+    else
+        require npx
+        npx "$@"
+    fi
+}
+
 function assertRequiredVariablesSet() {
-    if [ $STAGE == false ]; then
+    if [ "$STAGE" == false ]; then
         echo "stage is required. You can pass the value using -t / --stage"
         exit 5
     fi
-    if [ $SERVICE == false ]; then
+    if [ "$SERVICE" == false ]; then
         echo "service is required. You can pass the value using -s / --service. e.g., phapi-core-org"
         exit 6
     fi
-    if [ $SERVICE_URL_PREFIX == false ]; then
+    if [ "$SERVICE_URL_PREFIX" == false ]; then
         echo "service url prefix is required. You can pass the value using -p or --service-url-prefix. e.g., phapi-core-org-internal"
         exit 7
     fi
 }
 
 function generateSchema() {
-    # install deps
-    pnpm install --frozen-lockfile
-    # emit schema
-    pnpm schema:emit
+    installDependencies
+    runPackageScript schema:emit
 }
 
 function checkSchema() {
@@ -60,7 +116,7 @@ function checkSchema() {
         export APOLLO_GRAPH_REF=${GRAPH_NAME}
 
         echo "checking graphql schema in $STAGE-$region"
-        pnpm exec rover subgraph check ${GRAPH_NAME} --name ${SERVICE} --schema schema.gql || true
+        execPackageBin rover subgraph check "${GRAPH_NAME}" --name "${SERVICE}" --schema schema.gql || true
     done
 }
 
@@ -72,7 +128,7 @@ function publishSchema() {
         export APOLLO_GRAPH_REF=${GRAPH_NAME}
 
         echo "publishing graphql schema to $STAGE-$region"
-        pnpm exec rover subgraph publish ${GRAPH_NAME} --name ${SERVICE} --schema ./schema.gql --routing-url ${ROUTING_URL}
+        execPackageBin rover subgraph publish "${GRAPH_NAME}" --name "${SERVICE}" --schema ./schema.gql --routing-url "${ROUTING_URL}"
     done
 }
 
@@ -81,10 +137,10 @@ if [ "$BASH_SOURCE" == "$0" ]; then
     set -o pipefail
     set -u
     set -e
+
     # If no args are provided, display usage information
     if [ $# == 0 ]; then usage; fi
 
-    require pnpm
     # require buildkite-agent
 
     # Loop through arguments, two at a time for key and value
@@ -104,7 +160,7 @@ if [ "$BASH_SOURCE" == "$0" ]; then
             shift # past argument
             ;;
         *)
-            #If another key was given that is not empty display usage.
+            # If another key was given that is not empty display usage.
             if [[ ! -z "$key" ]]; then
                 usage
                 exit 2
